@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { isAxiosError } from "axios"
 import {
   ArrowDown,
   ArrowUp,
@@ -47,7 +48,10 @@ import { useYears } from "@/modules/year/hooks/use-years"
 import { useYearMutations } from "@/modules/year/hooks/use-year-mutations"
 import { useUsers } from "@/modules/user/hooks/use-users"
 import { useUserMutations } from "@/modules/user/hooks/use-user-mutations"
-import type { AdminResourceRecord } from "@/types/admin-resource"
+import type {
+  AdminResourcePayload,
+  AdminResourceRecord,
+} from "@/types/admin-resource"
 
 const PAGE_SIZE_OPTIONS = [10, 20, 40, 50, 100]
 const EMPTY_ROWS: AdminResourceRecord[] = []
@@ -67,6 +71,18 @@ function getStringField(record: unknown, key: string): string | undefined {
   return typeof value === "string" || typeof value === "number"
     ? String(value)
     : undefined
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError(error)) {
+    return (
+      getStringField(error.response?.data, "message") ??
+      error.message ??
+      fallback
+    )
+  }
+
+  return error instanceof Error ? error.message : fallback
 }
 
 function formatCell(
@@ -139,7 +155,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
   const [debouncedSearch, setDebouncedSearch] = useState(search)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<AdminResourceRecord | null>(null)
-  const [formData, setFormData] = useState<Record<string, any>>({})
+  const [formData, setFormData] = useState<Record<string, unknown>>({})
   const [payloadError, setPayloadError] = useState("")
   const [saving, setSaving] = useState(false)
   const [deletingRecord, setDeletingRecord] = useState<AdminResourceRecord | null>(null)
@@ -283,7 +299,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
 
   const openCreate = () => {
     setEditingRecord(null)
-    const initial: Record<string, any> = {}
+    const initial: Record<string, unknown> = {}
     if (resource === "companies") {
       initial.companyName = ""
       initial.address = ""
@@ -320,7 +336,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
     setEditorOpen(true)
   }
 
-  const handleFormChange = (key: string, value: any) => {
+  const handleFormChange = (key: string, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -328,7 +344,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
     setSaving(true)
     setPayloadError("")
     try {
-      const payload: Record<string, any> = { ...formData }
+      const payload: AdminResourcePayload = { ...formData }
 
       delete payload.id
       delete payload.createdAt
@@ -344,8 +360,8 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
       }
       setEditorOpen(false)
       mutate()
-    } catch (err: any) {
-      setPayloadError(err.response?.data?.message ?? err.message ?? "Failed to save record.")
+    } catch (error: unknown) {
+      setPayloadError(getErrorMessage(error, "Failed to save record."))
     } finally {
       setSaving(false)
     }
@@ -359,12 +375,15 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
       await crud.remove(deletingRecord.id)
       setDeletingRecord(null)
       mutate()
-    } catch (err: any) {
-      setPayloadError(err.response?.data?.message ?? err.message ?? "Failed to delete record.")
+    } catch (error: unknown) {
+      setPayloadError(getErrorMessage(error, "Failed to delete record."))
     } finally {
       setDeleting(false)
     }
   }
+
+  const getFormString = (key: string, fallback = "") =>
+    getStringField(formData, key) ?? fallback
 
   return (
     <div className="space-y-6">
@@ -625,7 +644,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-foreground">Company Name *</label>
                     <Input
-                      value={formData.companyName ?? ""}
+                      value={getFormString("companyName")}
                       onChange={(e) => handleFormChange("companyName", e.target.value)}
                       placeholder="e.g. Siam Logistics Co., Ltd."
                       required
@@ -634,7 +653,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-foreground">User ID (Owner) *</label>
                     <Input
-                      value={formData.userId ?? ""}
+                      value={getFormString("userId")}
                       onChange={(e) => handleFormChange("userId", e.target.value)}
                       placeholder="UUID of associated user"
                       required
@@ -643,7 +662,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-foreground">Address</label>
                     <Input
-                      value={formData.address ?? ""}
+                      value={getFormString("address")}
                       onChange={(e) => handleFormChange("address", e.target.value)}
                       placeholder="Bangkok, Thailand"
                     />
@@ -652,7 +671,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-foreground">Phone</label>
                       <Input
-                        value={formData.phone ?? ""}
+                        value={getFormString("phone")}
                         onChange={(e) => handleFormChange("phone", e.target.value)}
                         placeholder="+66 81 234 5678"
                       />
@@ -661,7 +680,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                       <label className="text-xs font-semibold text-foreground">Contact Email</label>
                       <Input
                         type="email"
-                        value={formData.contactEmail ?? ""}
+                        value={getFormString("contactEmail")}
                         onChange={(e) => handleFormChange("contactEmail", e.target.value)}
                         placeholder="hr@company.co.th"
                       />
@@ -675,7 +694,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-foreground">User ID (Owner) *</label>
                     <Input
-                      value={formData.userId ?? ""}
+                      value={getFormString("userId")}
                       onChange={(e) => handleFormChange("userId", e.target.value)}
                       placeholder="User UUID"
                       required
@@ -686,7 +705,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                       <label className="text-xs font-semibold text-foreground">Start Year / Date *</label>
                       <Input
                         type="date"
-                        value={formData.startYear ? String(formData.startYear).split("T")[0] : ""}
+                        value={getFormString("startYear").split("T")[0]}
                         onChange={(e) => handleFormChange("startYear", e.target.value)}
                         required
                       />
@@ -695,7 +714,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                       <label className="text-xs font-semibold text-foreground">End Year / Date *</label>
                       <Input
                         type="date"
-                        value={formData.endYear ? String(formData.endYear).split("T")[0] : ""}
+                        value={getFormString("endYear").split("T")[0]}
                         onChange={(e) => handleFormChange("endYear", e.target.value)}
                         required
                       />
@@ -709,7 +728,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-foreground">User Name (Manager Account) *</label>
                     <select
-                      value={formData.userId ?? ""}
+                      value={getFormString("userId")}
                       onChange={(e) => handleFormChange("userId", e.target.value)}
                       className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       required
@@ -731,7 +750,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-foreground">Company Name *</label>
                     <select
-                      value={formData.companyId ?? ""}
+                      value={getFormString("companyId")}
                       onChange={(e) => handleFormChange("companyId", e.target.value)}
                       className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       required
@@ -753,7 +772,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-foreground">Gender</label>
                       <select
-                        value={formData.gender ?? "MALE"}
+                        value={getFormString("gender", "MALE")}
                         onChange={(e) => handleFormChange("gender", e.target.value)}
                         className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
@@ -764,7 +783,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-foreground">Phone</label>
                       <Input
-                        value={formData.phone ?? ""}
+                        value={getFormString("phone")}
                         onChange={(e) => handleFormChange("phone", e.target.value)}
                         placeholder="+66 89 000 1122"
                       />
@@ -778,7 +797,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-foreground">Full Name *</label>
                     <Input
-                      value={formData.fullName ?? ""}
+                      value={getFormString("fullName")}
                       onChange={(e) => handleFormChange("fullName", e.target.value)}
                       placeholder="Ko Min Thein"
                       required
@@ -788,7 +807,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                     <label className="text-xs font-semibold text-foreground">Email Address *</label>
                     <Input
                       type="email"
-                      value={formData.email ?? ""}
+                      value={getFormString("email")}
                       onChange={(e) => handleFormChange("email", e.target.value)}
                       placeholder="worker@example.com"
                       required
@@ -800,7 +819,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                     </label>
                     <Input
                       type="password"
-                      value={formData.password ?? ""}
+                      value={getFormString("password")}
                       onChange={(e) => handleFormChange("password", e.target.value)}
                       placeholder="••••••••"
                       required={!editingRecord}
@@ -809,7 +828,7 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-foreground">Role</label>
                     <select
-                      value={formData.role ?? "GENERAL_WORKER"}
+                      value={getFormString("role", "GENERAL_WORKER")}
                       onChange={(e) => handleFormChange("role", e.target.value)}
                       className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
