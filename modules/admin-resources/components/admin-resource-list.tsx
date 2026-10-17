@@ -58,6 +58,17 @@ type AdminResourceListProps = {
   description: string
 }
 
+function getStringField(record: unknown, key: string): string | undefined {
+  if (typeof record !== "object" || record === null || !(key in record)) {
+    return undefined
+  }
+
+  const value = (record as Record<string, unknown>)[key]
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : undefined
+}
+
 function formatCell(
   key: string,
   value: unknown,
@@ -66,16 +77,18 @@ function formatCell(
   companyMap?: Map<string, string>
 ) {
   if (key === "user" || key === "managerName") {
+    const userId = getStringField(row, "userId")
     return (
-      row?.user?.fullName ??
-      (row?.userId ? userMap?.get(String(row.userId)) : undefined) ??
+      getStringField(row?.user, "fullName") ??
+      (userId ? userMap?.get(userId) : undefined) ??
       (value ? String(value) : "—")
     )
   }
   if (key === "company" || key === "companyName") {
+    const companyId = getStringField(row, "companyId")
     return (
-      row?.company?.companyName ??
-      (row?.companyId ? companyMap?.get(String(row.companyId)) : undefined) ??
+      getStringField(row?.company, "companyName") ??
+      (companyId ? companyMap?.get(companyId) : undefined) ??
       (value ? String(value) : "—")
     )
   }
@@ -702,11 +715,17 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                       required
                     >
                       <option value="">-- Select a User --</option>
-                      {allUsers.data?.data?.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.fullName || u.email} ({u.email})
-                        </option>
-                      ))}
+                      {allUsers.data?.data?.map((user) => {
+                        const userId = getStringField(user, "id") ?? ""
+                        const email = getStringField(user, "email") ?? ""
+                        const name = getStringField(user, "fullName") || email
+
+                        return (
+                          <option key={userId} value={userId}>
+                            {name} ({email})
+                          </option>
+                        )
+                      })}
                     </select>
                   </div>
                   <div className="space-y-1.5">
@@ -718,11 +737,16 @@ function ResourceListContent({ resource, title, description }: AdminResourceList
                       required
                     >
                       <option value="">-- Select a Company --</option>
-                      {allCompanies.data?.data?.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.companyName || `Company ${c.id}`}
-                        </option>
-                      ))}
+                      {allCompanies.data?.data?.map((company) => {
+                        const companyId = getStringField(company, "id") ?? ""
+
+                        return (
+                          <option key={companyId} value={companyId}>
+                            {getStringField(company, "companyName") ||
+                              `Company ${companyId}`}
+                          </option>
+                        )
+                      })}
                     </select>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
