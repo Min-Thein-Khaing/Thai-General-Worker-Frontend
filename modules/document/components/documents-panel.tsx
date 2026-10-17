@@ -38,6 +38,82 @@ function isAllowedFile(file: File) {
   )
 }
 
+function DocumentThumbnail({ document }: { document: WorkerDocument }) {
+  const [imageUrl, setImageUrl] = useState<string | null>(
+    (document.url as string) || (document.fileUrl as string) || (document.imageUrl as string) || null
+  )
+  const [loading, setLoading] = useState(false)
+
+  const fileName = String(document.fileName ?? document.originalName ?? document.name ?? "")
+  const mimeType = String(document.mimeType ?? "")
+  const isImage = Boolean(
+    mimeType.startsWith("image/") ||
+    /\.(jpg|jpeg|png|webp|gif)$/i.test(fileName)
+  )
+  const isPdf = Boolean(
+    mimeType === "application/pdf" ||
+    /\.pdf$/i.test(fileName)
+  )
+
+  useEffect(() => {
+    let active = true
+    let blobUrl: string | null = null
+
+    if (isImage && !imageUrl && document.id) {
+      setLoading(true)
+      downloadWorkerDocument(document.id)
+        .then((blob) => {
+          if (active && blob) {
+            blobUrl = URL.createObjectURL(blob)
+            setImageUrl(blobUrl)
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    }
+
+    return () => {
+      active = false
+      if (blobUrl) URL.revokeObjectURL(blobUrl)
+    }
+  }, [document.id, isImage, imageUrl])
+
+  if (isImage) {
+    if (imageUrl) {
+      return (
+        <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted/40 shadow-2xs">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt={fileName} className="size-full object-cover" />
+        </div>
+      )
+    }
+    if (loading) {
+      return (
+        <div className="flex size-14 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40">
+          <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
+        </div>
+      )
+    }
+  }
+
+  if (isPdf) {
+    return (
+      <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 text-red-600">
+        <FileText className="size-5" />
+        <span className="text-[9px] font-bold uppercase tracking-wider">PDF</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex size-14 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+      <File className="size-6" />
+    </div>
+  )
+}
+
 export function DocumentsPanel({ workerId, canManage }: DocumentsPanelProps) {
   const { data, error, isLoading, upload, remove } = useWorkerDocuments(workerId)
   const [files, setFiles] = useState<LocalFile[]>([])
@@ -264,32 +340,45 @@ export function DocumentsPanel({ workerId, canManage }: DocumentsPanelProps) {
             {data.map((document) => {
               const fields = documentFields(document)
               const name = String(document.fileName ?? document.originalName ?? document.name ?? `Document ${document.id}`)
+              const docType = String(document.documentType ?? "")
+
               return (
-                <article key={String(document.id)} className="flex flex-col gap-3 rounded-xl border border-border p-4 sm:flex-row sm:items-center">
-                  <File className="size-5 shrink-0 text-primary" />
+                <article key={String(document.id)} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-muted/10 sm:flex-row sm:items-center">
+                  <DocumentThumbnail document={document} />
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate font-medium">{name}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="truncate font-medium text-foreground">{name}</h3>
+                      {docType && (
+                        <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                          {docType}
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      {fields.filter(([key]) => key !== "id").slice(0, 4).map(([key, value]) => (
+                      {fields.filter(([key]) => !["id", "fileName", "originalName", "name", "documentType", "url", "fileUrl", "imageUrl"].includes(key)).slice(0, 4).map(([key, value]) => (
                         <span key={key}>{key}: {typeof value === "string" || typeof value === "number" ? value : String(value ?? "—")}</span>
                       ))}
                     </div>
                   </div>
-                  <Button type="button" variant="outline" onClick={() => void downloadFile(document)}>
-                    <Download className="mr-2 size-4" />
-                    Download
-                  </Button>
-                  {canManage ? (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      disabled={deletingId === document.id}
-                      onClick={() => void deleteDocument(document)}
-                      aria-label={`Delete ${name}`}
-                    >
-                      {deletingId === document.id ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <Button type="button" variant="outline" size="sm" onClick={() => void downloadFile(document)} className="gap-1.5 font-medium shadow-2xs">
+                      <Download className="size-4 text-primary" />
+                      Download
                     </Button>
-                  ) : null}
+                    {canManage ? (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        disabled={deletingId === document.id}
+                        onClick={() => void deleteDocument(document)}
+                        aria-label={`Delete ${name}`}
+                        className="size-8 p-0"
+                      >
+                        {deletingId === document.id ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                      </Button>
+                    ) : null}
+                  </div>
                 </article>
               )
             })}

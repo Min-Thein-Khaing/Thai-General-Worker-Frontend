@@ -16,6 +16,20 @@ export async function getWorker(id: string) {
   return response.data
 }
 
+export async function createWorker(payload: Record<string, any>) {
+  const response = await api.post<WorkerRecord>("/api/worker", payload)
+  return response.data
+}
+
+export async function updateWorker(id: string, payload: Record<string, any>) {
+  const response = await api.patch<WorkerRecord>(`/api/worker/${id}`, payload)
+  return response.data
+}
+
+export async function deleteWorker(id: string) {
+  await api.delete(`/api/worker/${id}`)
+}
+
 export async function getFinancialSummary() {
   const response = await api.get<FinancialSummary>("/api/worker/financial-summary")
   return response.data

@@ -6,11 +6,13 @@ import type { AdminResourceParams } from "@/types/admin-resource"
 import { getCompanies } from "@/services/company"
 import { getManagers } from "@/services/manager"
 import { getYears } from "@/services/year"
+import { getUsers } from "@/services/user"
 
 const listFetchers = {
   companies: getCompanies,
   managers: getManagers,
   years: getYears,
+  users: getUsers,
 }
 
 export type AdminResourceName = keyof typeof listFetchers

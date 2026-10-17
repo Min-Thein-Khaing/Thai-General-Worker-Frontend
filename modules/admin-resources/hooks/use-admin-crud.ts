@@ -18,6 +18,11 @@ import {
   deleteYear,
   updateYear,
 } from "@/services/year"
+import {
+  createUser,
+  deleteUser,
+  updateUser,
+} from "@/services/user"
 import type { AdminResourcePayload } from "@/types/admin-resource"
 import type { AdminResourceName } from "@/modules/admin-resources/hooks/use-admin-resource-list"
 
@@ -25,6 +30,7 @@ const crudOperations = {
   companies: { create: createCompany, update: updateCompany, delete: deleteCompany },
   managers: { create: createManager, update: updateManager, delete: deleteManager },
   years: { create: createYear, update: updateYear, delete: deleteYear },
+  users: { create: createUser, update: updateUser, delete: deleteUser },
 }
 
 export function useAdminCrud(resource: AdminResourceName) {
@@ -34,19 +40,19 @@ export function useAdminCrud(resource: AdminResourceName) {
   const create = async (payload: AdminResourcePayload) => {
     await operations.create(payload)
     await mutate((key) => Array.isArray(key) && key[0] === resource)
-    toast.success(`${resource.slice(0, -1)} created`)
+    toast.success(`${resource.slice(0, -1)} created successfully`)
   }
 
   const update = async (id: string | number, payload: AdminResourcePayload) => {
     await operations.update(id, payload)
     await mutate((key) => Array.isArray(key) && key[0] === resource)
-    toast.success(`${resource.slice(0, -1)} updated`)
+    toast.success(`${resource.slice(0, -1)} updated successfully`)
   }
 
   const remove = async (id: string | number) => {
     await operations.delete(id)
     await mutate((key) => Array.isArray(key) && key[0] === resource)
-    toast.success(`${resource.slice(0, -1)} deleted`)
+    toast.success(`${resource.slice(0, -1)} deleted successfully`)
   }
 
   return { create, update, remove }

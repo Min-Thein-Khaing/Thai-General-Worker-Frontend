@@ -1,14 +1,26 @@
 export type WorkerRecord = {
   id: string
+  userId?: string
+  managerId?: string
+  companyId?: string
+  yearId?: string
   fullName?: string
   passportNumber?: string
   workPermitNumber?: string
+  ciNumber?: string
+  typeOfBook?: string
+  gender?: "MALE" | "FEMALE" | string
   phone?: string
-  reportDate?: string | null
-  workPermitVisaDate?: string | null
+  type?: "OLD" | "NEW" | string
   total?: number | string
   deposit?: number | string
   balance?: number | string
+  renewalDecision?: "UNDECIDED" | "EXTENDED" | "NOT_EXTENDED" | string
+  reportDate?: string | null
+  workPermitVisaDate?: string | null
+  imageUrl?: string | null
+  createdAt?: string
+  updatedAt?: string
 }
 
 export type PaginationMeta = {

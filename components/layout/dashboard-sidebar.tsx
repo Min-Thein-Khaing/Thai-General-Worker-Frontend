@@ -26,11 +26,12 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { useAuthStore } from "@/store/auth-store"
+import { useReportNotifications } from "@/modules/worker/hooks/use-report-notifications"
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: BarChart3, roles: ["ADMIN", "MANAGER", "GENERAL_WORKER"] },
   { href: "/dashboard/workers", label: "Workers", icon: BriefcaseBusiness, roles: ["ADMIN", "MANAGER"] },
-  { href: "/dashboard/documents", label: "Documents", icon: FileText, roles: ["ADMIN", "MANAGER"] },
+  { href: "/dashboard/documents", label: "Documents", icon: FileText, roles: ["ADMIN", "MANAGER", "GENERAL_WORKER"] },
   { href: "/dashboard/users", label: "Users", icon: Users, roles: ["ADMIN"] },
   { href: "/dashboard/companies", label: "Companies", icon: Building2, roles: ["ADMIN"] },
   { href: "/dashboard/managers", label: "Managers", icon: UsersRound, roles: ["ADMIN"] },
@@ -40,6 +41,8 @@ const navItems = [
 export function DashboardSidebar() {
   const pathname = usePathname()
   const role = useAuthStore((state) => state.user?.role ?? "GENERAL_WORKER")
+  const notifications = useReportNotifications(role === "ADMIN")
+  const notificationCount = notifications.data?.length ?? 0
   const visibleItems = navItems.filter((item) => item.roles.includes(role))
 
   return (
@@ -68,15 +71,29 @@ export function DashboardSidebar() {
                     ? pathname === item.href
                     : pathname === item.href || pathname.startsWith(`${item.href}/`)
 
+                const hasNotification = item.href === "/dashboard/workers" && notificationCount > 0
+                const tooltipText = hasNotification
+                  ? `${item.label} (${notificationCount} due in 7 days)`
+                  : item.label
+
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
                       render={<Link href={item.href} />}
                       isActive={isActive}
-                      tooltip={item.label}
+                      tooltip={tooltipText}
+                      className="relative"
                     >
                       <Icon aria-hidden="true" />
                       <span>{item.label}</span>
+                      {hasNotification ? (
+                        <>
+                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500/20 px-1.5 text-[10px] font-bold text-amber-600 group-data-[collapsible=icon]:hidden dark:bg-amber-500/30 dark:text-amber-400">
+                            {notificationCount}
+                          </span>
+                          <span className="absolute top-2 right-2 size-2 rounded-full bg-amber-500 hidden group-data-[collapsible=icon]:block" />
+                        </>
+                      ) : null}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 )

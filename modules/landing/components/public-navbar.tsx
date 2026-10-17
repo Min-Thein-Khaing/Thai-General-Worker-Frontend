@@ -5,15 +5,16 @@ import { Menu, ShieldCheck } from "lucide-react"
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth-store"
 import { landingCopy } from "@/modules/landing/constants"
 
-export function PublicNavbar() {
+export function PublicNavbar({ className }: { className?: string }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
+    <header className={cn("sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl", className)}>
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8" aria-label="Main navigation">
         <Link href="/" className="flex items-center gap-3 font-semibold text-foreground">
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
